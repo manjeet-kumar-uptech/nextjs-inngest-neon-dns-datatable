@@ -74,7 +74,7 @@ export const parseCsvFn = inngest.createFunction(
 
     console.log('✅ CSV downloaded, length:', csvContent.length);
 
-    let allRows: string[] = [];
+    const allRows: string[] = [];
 
     // 2) Parse CSV and extract domains
     await step.run("parse csv", async () => {

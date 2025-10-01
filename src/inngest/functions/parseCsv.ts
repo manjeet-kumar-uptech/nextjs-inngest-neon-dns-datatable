@@ -74,10 +74,8 @@ export const parseCsvFn = inngest.createFunction(
 
     console.log('✅ CSV downloaded, length:', csvContent.length);
 
-    const allRows: string[] = [];
-
     // 2) Parse CSV and extract domains
-    await step.run("parse csv", async () => {
+    const allRows = await step.run("parse csv", async () => {
       // Parse CSV with better configuration
       const parsed = Papa.parse<string[]>(csvContent, {
         skipEmptyLines: 'greedy', // Skip empty lines more aggressively
@@ -91,6 +89,8 @@ export const parseCsvFn = inngest.createFunction(
         errors: parsed.errors,
         meta: parsed.meta
       });
+
+      const extractedDomains: string[] = [];
 
       // Extract domains from first column of each row
       for (let i = 0; i < parsed.data.length; i++) {
@@ -107,7 +107,7 @@ export const parseCsvFn = inngest.createFunction(
             const potentialDomain = extractDomainFromCell(firstCell.trim());
             if (potentialDomain) {
               console.log(`📋 Extracted domain from row ${i}:`, potentialDomain);
-              allRows.push(potentialDomain);
+              extractedDomains.push(potentialDomain);
             } else {
               console.log(`📋 No valid domain found in row ${i}:`, firstCell);
             }
@@ -119,7 +119,8 @@ export const parseCsvFn = inngest.createFunction(
         }
       }
 
-      console.log(`All rows:`, allRows)
+      console.log('✅ Extracted domains from CSV:', extractedDomains.length);
+      return extractedDomains;
     });
 
     console.log('✅ All extracted potential domains:', allRows.length);

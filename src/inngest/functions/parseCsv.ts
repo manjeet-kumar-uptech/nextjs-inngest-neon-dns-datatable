@@ -3,6 +3,8 @@ import Papa from "papaparse";
 import { sql } from "@/lib/db";
 import { lookupDMARC, lookupMX, lookupSPF, normalizeDomain } from "@/lib/dns";
 import { runMigrations } from "@/lib/migrate";
+import fs from 'fs'
+import path from 'path'
 
 // Helper function to extract domain from various cell formats
 function extractDomainFromCell(cellValue: string): string | null {
@@ -68,7 +70,7 @@ export const parseCsvFn = inngest.createFunction(
     await step.run('initialize-database', async () => {
       console.log('🔄 Initializing database connection...')
 
-      // Test database connection
+      // Test database connection first
       try {
         const testResult = await sql`SELECT 1 as test`
         console.log('✅ Database connection test:', testResult)
@@ -81,8 +83,13 @@ export const parseCsvFn = inngest.createFunction(
         throw dbError
       }
 
-      // Run migrations
+      // Run migrations and verify table creation
       await runMigrations();
+
+      // Double-check table exists after migration
+      const tableCheckAfter = await sql`SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'domains')`
+      console.log('📋 Domains table exists after migration:', tableCheckAfter[0].exists)
+
       return { initialized: true };
     });
 
@@ -202,12 +209,27 @@ export const parseCsvFn = inngest.createFunction(
     await step.run("bulk insert", async () => {
       console.log('🔄 Starting bulk insert...')
 
+      // First, ensure migration runs in this step too (in case of isolation)
+      await runMigrations();
+
       // Check if table exists before inserting
       const tableCheck = await sql`SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'domains')`
-      console.log('📋 Domains table exists:', tableCheck[0].exists)
+      console.log('📋 Domains table exists in bulk insert step:', tableCheck[0].exists)
 
       if (!tableCheck[0].exists) {
-        throw new Error('Domains table does not exist! Migration may have failed.')
+        // Try to create table manually if migration didn't work
+        console.log('⚠️ Table not found, attempting manual creation...')
+        const schemaPath = path.join(process.cwd(), 'src/lib/schema.sql')
+        const schema = fs.readFileSync(schemaPath, 'utf8')
+        await sql.unsafe(schema)
+
+        // Check again
+        const tableCheckAfter = await sql`SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'domains')`
+        console.log('📋 Domains table exists after manual creation:', tableCheckAfter[0].exists)
+
+        if (!tableCheckAfter[0].exists) {
+          throw new Error('Failed to create domains table even after manual creation attempt')
+        }
       }
 
       console.log('📊 Inserting', rawArr.length, 'domains...')

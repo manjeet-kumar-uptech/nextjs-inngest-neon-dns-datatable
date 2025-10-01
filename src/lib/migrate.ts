@@ -27,11 +27,11 @@ export async function runMigrations() {
   } catch (error) {
     console.error('❌ Database migration failed:', error)
     console.error('❌ Error details:', {
-      message: error.message,
-      code: error.code,
-      severity: error.severity,
-      detail: error.detail,
-      hint: error.hint
+      message: error instanceof Error ? error.message : String(error),
+      code: error instanceof Error && 'code' in error ? String((error as { code: unknown }).code) : 'unknown',
+      severity: error instanceof Error && 'severity' in error ? String((error as { severity: unknown }).severity) : 'unknown',
+      detail: error instanceof Error && 'detail' in error ? String((error as { detail: unknown }).detail) : 'unknown',
+      hint: error instanceof Error && 'hint' in error ? String((error as { hint: unknown }).hint) : 'unknown'
     })
 
     // Check if it's a "relation already exists" error

@@ -74,6 +74,10 @@ export const parseCsvFn = inngest.createFunction(
         console.log('✅ Database connection test:', testResult)
       } catch (dbError) {
         console.error('❌ Database connection failed:', dbError)
+        console.error('❌ DB Error details:', {
+          message: dbError instanceof Error ? dbError.message : String(dbError),
+          code: dbError instanceof Error && 'code' in dbError ? String((dbError as { code: unknown }).code) : 'unknown'
+        })
         throw dbError
       }
 

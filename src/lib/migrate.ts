@@ -33,6 +33,21 @@ export async function runMigrations() {
       return
     }
 
+    // Check user permissions before attempting table creation
+    console.log('🔐 Checking database permissions...')
+    try {
+      const permissionsCheck = await sql`
+        SELECT
+          current_user as db_user,
+          has_table_privilege(current_user, 'domains', 'CREATE') as can_create_table,
+          has_schema_privilege(current_user, 'public', 'CREATE') as can_create_in_public,
+          has_database_privilege(current_user, current_database(), 'CREATE') as can_create_in_db
+      `
+      console.log('🔐 User permissions:', permissionsCheck[0])
+    } catch (permError) {
+      console.error('❌ Permission check failed:', permError)
+    }
+
     // Read the schema file
     const schemaPath = path.join(process.cwd(), 'src/lib/schema.sql')
     console.log('📁 Schema file path:', schemaPath)

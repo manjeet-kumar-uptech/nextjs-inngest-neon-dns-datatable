@@ -21,11 +21,14 @@ export const parseCsvFn = inngest.createFunction(
       return await response.text();
     });
 
+    console.log('✅ CSV downloaded', csvContent);
+
     const rows: string[] = [];
 
     // 2) Parse CSV (1 column, or first column is domain/email/url)
     await step.run("parse csv", async () => {
       const parsed = Papa.parse<string[]>(csvContent, { skipEmptyLines: true });
+      console.log('✅ CSV parsed data', parsed.data);
       for (const r of parsed.data) {
         const cell = Array.isArray(r) ? r[0] : String(r);
         if (cell && cell.trim()) {

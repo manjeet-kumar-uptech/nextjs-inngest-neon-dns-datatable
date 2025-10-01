@@ -14,13 +14,15 @@ type CsvUploadedEvent = {
 
 // Create the CSV parsing function
 export const parseCsv = inngest.createFunction(
-  { id: 'parse-csv' },
+  {
+    id: 'parse-csv',
+    retries: 3, // Add retry configuration for production reliability
+  },
   { event: 'csv.uploaded' },
   async ({ event, step }) => {
     console.log("🚀 parseCsv function STARTED!")
     console.log("Event received:", JSON.stringify(event, null, 2))
     console.log("Environment:", process.env.NODE_ENV)
-    console.log("Inngest client configured:", !!inngest)
     console.log("Event name:", event.name)
     console.log("Event ID:", event.id)
 

@@ -17,6 +17,9 @@ export const parseCsv = inngest.createFunction(
   { id: 'parse-csv' },
   { event: 'csv.uploaded' },
   async ({ event, step }) => {
+
+    console.log("HERE WE GO")
+
     const { url, fileName, uploadedAt } = event.data as CsvUploadedEvent['data']
 
     console.log(`Processing CSV file: ${fileName}`)

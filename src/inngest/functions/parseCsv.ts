@@ -118,6 +118,8 @@ export const parseCsvFn = inngest.createFunction(
           console.log(`📋 Invalid row format at index ${i}:`, row);
         }
       }
+
+      console.log(`All rows:`, allRows)
     });
 
     console.log('✅ All extracted potential domains:', allRows.length);

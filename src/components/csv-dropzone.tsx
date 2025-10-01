@@ -132,23 +132,39 @@ export function CsvDropzone() {
       const { url } = await completeResponse.json()
 
       // Update status to completed
-      setUploads(prev => prev.map(upload => 
+      setUploads(prev => prev.map(upload =>
         upload.fileName === file.name && upload.status === 'uploading'
           ? { ...upload, progress: 100, status: 'completed', uploadedUrl: url }
           : upload
       ))
 
+      // Emit success event for the page to listen to
+      window.dispatchEvent(new CustomEvent('csv-upload-success', {
+        detail: {
+          fileName: file.name,
+          url,
+          domains: 'Processing...' // Will be updated when processing completes
+        }
+      }))
+
     } catch (error) {
       console.error('Upload error:', error)
-      setUploads(prev => prev.map(upload => 
+      setUploads(prev => prev.map(upload =>
         upload.fileName === file.name && upload.status === 'uploading'
-          ? { 
-              ...upload, 
-              status: 'error', 
-              error: error instanceof Error ? error.message : 'Upload failed' 
+          ? {
+              ...upload,
+              status: 'error',
+              error: error instanceof Error ? error.message : 'Upload failed'
             }
           : upload
       ))
+
+      // Emit error event for the page to listen to
+      window.dispatchEvent(new CustomEvent('csv-upload-error', {
+        detail: {
+          error: error instanceof Error ? error.message : 'Upload failed'
+        }
+      }))
     }
   }
 

@@ -1,14 +1,106 @@
+"use client"
+
+import { useState, useEffect } from "react"
 import { CsvDropzone } from "@/components/csv-dropzone"
+import { DomainsTable } from "@/components/domains-table"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Upload, Shield, Zap, Cloud } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Upload, Shield, Zap, Cloud, CheckCircle, AlertCircle } from "lucide-react"
+import { cn } from "@/lib/utils"
+
+interface Notification {
+  id: string
+  type: 'success' | 'error' | 'info'
+  title: string
+  message: string
+  timestamp: Date
+}
 
 export default function Home() {
+  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [showDomainsTable, setShowDomainsTable] = useState(false)
+
+  // Listen for successful uploads and check for processing completion
+  useEffect(() => {
+    const handleUploadSuccess = (event: CustomEvent) => {
+      const { fileName, url } = event.detail
+
+      // Add initial success notification
+      const notification: Notification = {
+        id: Date.now().toString(),
+        type: 'info',
+        title: 'CSV Upload Complete',
+        message: `File "${fileName}" uploaded successfully. Processing domains...`,
+        timestamp: new Date()
+      }
+
+      setNotifications(prev => [notification, ...prev.slice(0, 4)])
+      setShowDomainsTable(true)
+
+      // Poll for processing completion
+      const checkProcessing = async () => {
+        try {
+          // This would need to be implemented - for now just show a generic message
+          setTimeout(() => {
+            // Update notification with success message
+            setNotifications(prev => prev.map(n =>
+              n.type === 'info' && n.title.includes('Upload Complete')
+                ? { ...n, type: 'success', title: 'CSV Processing Complete', message: `Successfully processed domains from ${fileName}` }
+                : n
+            ))
+          }, 2000) // Simulate processing time
+        } catch (error) {
+          console.error('Error checking processing status:', error)
+        }
+      }
+
+      checkProcessing()
+    }
+
+    const handleUploadError = (event: CustomEvent) => {
+      const { error } = event.detail
+
+      const notification: Notification = {
+        id: Date.now().toString(),
+        type: 'error',
+        title: 'Upload Failed',
+        message: error,
+        timestamp: new Date()
+      }
+
+      setNotifications(prev => [notification, ...prev.slice(0, 4)])
+    }
+
+    window.addEventListener('csv-upload-success', handleUploadSuccess as EventListener)
+    window.addEventListener('csv-upload-error', handleUploadError as EventListener)
+
+    return () => {
+      window.removeEventListener('csv-upload-success', handleUploadSuccess as EventListener)
+      window.removeEventListener('csv-upload-error', handleUploadError as EventListener)
+    }
+  }, [])
+
+  const dismissNotification = (id: string) => {
+    setNotifications(prev => prev.filter(n => n.id !== id))
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted/20">
       <div className="container mx-auto py-16 px-4">
         {/* Header */}
         <div className="text-center mb-12">
+          <div className="inline-flex items-center gap-2 mb-4">
+            <Badge variant="secondary" className="px-3 py-1">
+              <Cloud className="h-3 w-3 mr-1" />
+              Vercel Blob Storage
+            </Badge>
+            <Badge variant="outline" className="px-3 py-1">
+              <Zap className="h-3 w-3 mr-1" />
+              Chunked Upload
+            </Badge>
+          </div>
+
           <h1 className="text-4xl font-bold tracking-tight mb-4 bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
             CSV File Upload
           </h1>
@@ -16,7 +108,42 @@ export default function Home() {
             Upload your CSV files quickly and securely with our advanced chunked upload system
           </p>
         </div>
-        
+
+        {/* Notifications */}
+        {notifications.length > 0 && (
+          <div className="mb-8 space-y-2">
+            {notifications.map((notification) => (
+              <Card key={notification.id} className={cn(
+                "border-l-4",
+                notification.type === 'success' && "border-l-green-500 bg-green-50",
+                notification.type === 'error' && "border-l-red-500 bg-red-50",
+                notification.type === 'info' && "border-l-blue-500 bg-blue-50"
+              )}>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      {notification.type === 'success' && <CheckCircle className="h-4 w-4 text-green-600" />}
+                      {notification.type === 'error' && <AlertCircle className="h-4 w-4 text-red-600" />}
+                      <div>
+                        <p className="font-medium text-sm">{notification.title}</p>
+                        <p className="text-sm text-muted-foreground">{notification.message}</p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => dismissNotification(notification.id)}
+                      className="h-8 w-8 p-0"
+                    >
+                      ×
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+
         {/* Main Upload Section */}
         <div className="max-w-2xl mx-auto mb-16">
           <Card className="shadow-lg border-0 bg-card/50 backdrop-blur-sm">
@@ -32,13 +159,20 @@ export default function Home() {
           </Card>
         </div>
 
+        {/* Domains Table */}
+        {showDomainsTable && (
+          <div className="mb-16">
+            <DomainsTable />
+          </div>
+        )}
+
         {/* Features Grid */}
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-8">
             <h2 className="text-2xl font-semibold mb-2">Why Choose Our Upload System?</h2>
             <p className="text-muted-foreground">Built with modern technology for the best user experience</p>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <Card className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
               <CardHeader className="text-center">

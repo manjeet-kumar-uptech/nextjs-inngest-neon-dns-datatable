@@ -105,7 +105,7 @@ export const parseCsvFn = inngest.createFunction(
     console.log('✅ CSV downloaded, length:', csvContent.length);
 
     // 2) Parse CSV and extract domains
-    const allRows = await step.run("parse csv", async () => {
+    const { extractedDomains, csvRowsCount } = await step.run("parse csv", async () => {
       // Parse CSV with better configuration
       const parsed = Papa.parse<string[]>(csvContent, {
         skipEmptyLines: 'greedy', // Skip empty lines more aggressively
@@ -121,6 +121,7 @@ export const parseCsvFn = inngest.createFunction(
       });
 
       const extractedDomains: string[] = [];
+      let csvRowsCount = 0;
 
       // Extract domains from first column of each row
       for (let i = 0; i < parsed.data.length; i++) {
@@ -132,6 +133,7 @@ export const parseCsvFn = inngest.createFunction(
           console.log(`📋 First cell in row ${i}:`, firstCell);
 
           if (firstCell && firstCell.trim()) {
+            csvRowsCount++; // Count non-empty rows
             // Try to extract domain from the cell value
             // Handle various formats: plain domain, email, URL, etc.
             const potentialDomain = extractDomainFromCell(firstCell.trim());
@@ -150,15 +152,16 @@ export const parseCsvFn = inngest.createFunction(
       }
 
       console.log('✅ Extracted domains from CSV:', extractedDomains.length);
-      return extractedDomains;
+      return { extractedDomains, csvRowsCount };
     });
 
-    console.log('✅ All extracted potential domains:', allRows.length);
+    console.log('✅ All extracted potential domains:', extractedDomains.length);
+    console.log('✅ CSV rows processed:', csvRowsCount);
 
     // 3) Normalize and deduplicate domains
     const domains = Array.from(
       new Set(
-        allRows
+        extractedDomains
           .map((domainStr) => normalizeDomain(domainStr))
           .filter((domain): domain is string => !!domain)
       )
@@ -256,7 +259,16 @@ export const parseCsvFn = inngest.createFunction(
       fileName,
       url,
       processed: out.length,
-      domains: domains.length
+      domains: domains.length,
+      sampleDomains: domains.slice(0, 5),
+      totalInserted: out.length,
+      processingSummary: {
+        csvRows: csvRowsCount,
+        uniqueDomains: domains.length,
+        domainsWithMX: out.filter(d => d.has_mx).length,
+        domainsWithSPF: out.filter(d => d.spf).length,
+        domainsWithDMARC: out.filter(d => d.dmarc).length
+      }
     };
   }
 );

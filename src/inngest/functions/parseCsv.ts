@@ -21,6 +21,8 @@ export const parseCsv = inngest.createFunction(
     console.log("Event received:", JSON.stringify(event, null, 2))
     console.log("Environment:", process.env.NODE_ENV)
     console.log("Inngest client configured:", !!inngest)
+    console.log("Event name:", event.name)
+    console.log("Event ID:", event.id)
 
     const { url, fileName, uploadedAt } = event.data as CsvUploadedEvent['data']
 

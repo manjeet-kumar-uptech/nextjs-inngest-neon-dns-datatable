@@ -2,6 +2,7 @@ import { inngest } from "../client";
 import Papa from "papaparse";
 import { sql } from "@/lib/db";
 import { lookupDMARC, lookupMX, lookupSPF, normalizeDomain } from "@/lib/dns";
+import { runMigrations } from "@/lib/migrate";
 
 // Helper function to extract domain from various cell formats
 function extractDomainFromCell(cellValue: string): string | null {
@@ -62,6 +63,12 @@ export const parseCsvFn = inngest.createFunction(
 
     console.log('🚀 Processing uploaded CSV:', fileName);
     console.log('📁 File URL:', url);
+
+    // Ensure database is initialized before processing
+    await step.run('initialize-database', async () => {
+      await runMigrations();
+      return { initialized: true };
+    });
 
     // 1) Download and parse CSV from blob URL
     const csvContent = await step.run("download csv", async () => {
@@ -187,7 +194,14 @@ export const parseCsvFn = inngest.createFunction(
           ${mxArr}::jsonb[],
           ${spfArr}::text[],
           ${dmarcArr}::text[]
-        )`;
+        )
+        ON CONFLICT (domain) DO UPDATE SET
+          raw = EXCLUDED.raw,
+          has_mx = EXCLUDED.has_mx,
+          mx = EXCLUDED.mx,
+          spf = EXCLUDED.spf,
+          dmarc = EXCLUDED.dmarc,
+          updated_at = now()`;
     });
 
     console.log('✅ Bulk insert completed');

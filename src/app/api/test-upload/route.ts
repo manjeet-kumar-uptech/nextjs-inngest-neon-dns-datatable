@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Papa from 'papaparse'
 import { normalizeDomain } from '@/lib/dns'
+import { runMigrations } from '@/lib/migrate'
 
 // Helper function to extract domain from various cell formats (same as in parseCsv.ts)
 function extractDomainFromCell(cellValue: string): string | null {
@@ -55,6 +56,9 @@ function extractDomainFromCell(cellValue: string): string | null {
 
 export async function POST(request: NextRequest) {
   try {
+    // Ensure database is initialized (for consistency, even though test doesn't write to DB)
+    await runMigrations()
+
     const { csvUrl } = await request.json()
 
     if (!csvUrl || typeof csvUrl !== 'string') {

@@ -34,6 +34,8 @@ export const parseCsvFn = inngest.createFunction(
       }
     });
 
+    console.log('✅ CSV parsed', rows);
+
     // 2) Normalize + de-dupe
     const domains = Array.from(
       new Set(
@@ -42,6 +44,8 @@ export const parseCsvFn = inngest.createFunction(
           .filter((v): v is string => !!v)
       )
     ).slice(0, 2000); // guardrail for demo
+
+    console.log('✅ Domains normalized and de-duped', domains);
 
     if (domains.length === 0) return { success: true, processed: 0, domains: 0 };
 
@@ -95,6 +99,8 @@ export const parseCsvFn = inngest.createFunction(
           ${dmarcArr}::text[]
         )`;
     });
+
+    console.log('✅ Bulk insert completed');
 
     return {
       success: true,

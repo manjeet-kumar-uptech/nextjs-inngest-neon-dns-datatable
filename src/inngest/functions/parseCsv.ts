@@ -3,6 +3,57 @@ import Papa from "papaparse";
 import { sql } from "@/lib/db";
 import { lookupDMARC, lookupMX, lookupSPF, normalizeDomain } from "@/lib/dns";
 
+// Helper function to extract domain from various cell formats
+function extractDomainFromCell(cellValue: string): string | null {
+  if (!cellValue || cellValue.trim().length === 0) {
+    return null;
+  }
+
+  let domain = cellValue.trim().toLowerCase();
+
+  // Handle email format: user@domain.com -> domain.com
+  if (domain.includes('@')) {
+    const parts = domain.split('@');
+    if (parts.length === 2 && parts[1]) {
+      domain = parts[1];
+    } else {
+      return null; // Invalid email format
+    }
+  }
+
+  // Handle URL format: https://domain.com/path -> domain.com
+  if (domain.startsWith('http://') || domain.startsWith('https://')) {
+    try {
+      const url = new URL(domain.startsWith('http') ? domain : 'https://' + domain);
+      domain = url.hostname;
+    } catch {
+      return null; // Invalid URL format
+    }
+  }
+
+  // Remove www prefix
+  if (domain.startsWith('www.')) {
+    domain = domain.substring(4);
+  }
+
+  // Remove path/query parameters
+  if (domain.includes('/')) {
+    domain = domain.split('/')[0];
+  }
+
+  // Basic domain validation - must have at least one dot and TLD
+  if (!domain.includes('.') || domain.split('.').pop()?.length === 0) {
+    return null;
+  }
+
+  // Must be at least 3 characters (a.bc)
+  if (domain.length < 3) {
+    return null;
+  }
+
+  return domain;
+}
+
 export const parseCsvFn = inngest.createFunction(
   { id: "parse-csv-and-enrich" },
   { event: "csv.uploaded" },
@@ -21,35 +72,67 @@ export const parseCsvFn = inngest.createFunction(
       return await response.text();
     });
 
-    console.log('✅ CSV downloaded', csvContent);
+    console.log('✅ CSV downloaded, length:', csvContent.length);
 
-    const rows: string[] = [];
+    let allRows: string[] = [];
 
-    // 2) Parse CSV (1 column, or first column is domain/email/url)
+    // 2) Parse CSV and extract domains
     await step.run("parse csv", async () => {
-      const parsed = Papa.parse<string[]>(csvContent, { skipEmptyLines: true });
-      console.log('✅ CSV parsed data', parsed.data);
-      for (const r of parsed.data) {
-        const cell = Array.isArray(r) ? r[0] : String(r);
-        console.log('✅ CSV parsed cell', cell);
-        if (cell && cell.trim()) {
-          rows.push(cell.trim());
+      // Parse CSV with better configuration
+      const parsed = Papa.parse<string[]>(csvContent, {
+        skipEmptyLines: 'greedy', // Skip empty lines more aggressively
+        header: false, // Don't treat first row as headers
+        transformHeader: (header: string) => header.trim(),
+        transform: (value: string) => value.trim()
+      });
+
+      console.log('✅ Papa parsed result:', {
+        dataLength: parsed.data.length,
+        errors: parsed.errors,
+        meta: parsed.meta
+      });
+
+      // Extract domains from first column of each row
+      for (let i = 0; i < parsed.data.length; i++) {
+        const row = parsed.data[i];
+        console.log(`📋 Processing row ${i}:`, row);
+
+        if (Array.isArray(row) && row.length > 0) {
+          const firstCell = row[0];
+          console.log(`📋 First cell in row ${i}:`, firstCell);
+
+          if (firstCell && firstCell.trim()) {
+            // Try to extract domain from the cell value
+            // Handle various formats: plain domain, email, URL, etc.
+            const potentialDomain = extractDomainFromCell(firstCell.trim());
+            if (potentialDomain) {
+              console.log(`📋 Extracted domain from row ${i}:`, potentialDomain);
+              allRows.push(potentialDomain);
+            } else {
+              console.log(`📋 No valid domain found in row ${i}:`, firstCell);
+            }
+          } else {
+            console.log(`📋 Empty or invalid first cell in row ${i}`);
+          }
+        } else {
+          console.log(`📋 Invalid row format at index ${i}:`, row);
         }
       }
     });
 
-    console.log('✅ CSV parsed', rows);
+    console.log('✅ All extracted potential domains:', allRows.length);
 
-    // 2) Normalize + de-dupe
+    // 3) Normalize and deduplicate domains
     const domains = Array.from(
       new Set(
-        rows
-          .map((r) => normalizeDomain(r))
-          .filter((v): v is string => !!v)
+        allRows
+          .map((domainStr) => normalizeDomain(domainStr))
+          .filter((domain): domain is string => !!domain)
       )
     ).slice(0, 2000); // guardrail for demo
 
-    console.log('✅ Domains normalized and de-duped', domains);
+    console.log('✅ Final normalized domains:', domains.length);
+    console.log('📋 Sample domains:', domains.slice(0, 5));
 
     if (domains.length === 0) return { success: true, processed: 0, domains: 0 };
 

@@ -31,6 +31,7 @@ export const parseCsvFn = inngest.createFunction(
       console.log('✅ CSV parsed data', parsed.data);
       for (const r of parsed.data) {
         const cell = Array.isArray(r) ? r[0] : String(r);
+        console.log('✅ CSV parsed cell', cell);
         if (cell && cell.trim()) {
           rows.push(cell.trim());
         }

@@ -66,6 +66,18 @@ export const parseCsvFn = inngest.createFunction(
 
     // Ensure database is initialized before processing
     await step.run('initialize-database', async () => {
+      console.log('🔄 Initializing database connection...')
+
+      // Test database connection
+      try {
+        const testResult = await sql`SELECT 1 as test`
+        console.log('✅ Database connection test:', testResult)
+      } catch (dbError) {
+        console.error('❌ Database connection failed:', dbError)
+        throw dbError
+      }
+
+      // Run migrations
       await runMigrations();
       return { initialized: true };
     });
@@ -184,8 +196,20 @@ export const parseCsvFn = inngest.createFunction(
     const dmarcArr = out.map((o) => o.dmarc);
 
     await step.run("bulk insert", async () => {
+      console.log('🔄 Starting bulk insert...')
+
+      // Check if table exists before inserting
+      const tableCheck = await sql`SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'domains')`
+      console.log('📋 Domains table exists:', tableCheck[0].exists)
+
+      if (!tableCheck[0].exists) {
+        throw new Error('Domains table does not exist! Migration may have failed.')
+      }
+
+      console.log('📊 Inserting', rawArr.length, 'domains...')
+
       // language=PostgreSQL
-      await sql`
+      const insertResult = await sql`
         INSERT INTO domains (raw, domain, has_mx, mx, spf, dmarc)
         SELECT * FROM unnest(
           ${rawArr}::text[],
@@ -201,7 +225,9 @@ export const parseCsvFn = inngest.createFunction(
           mx = EXCLUDED.mx,
           spf = EXCLUDED.spf,
           dmarc = EXCLUDED.dmarc,
-          updated_at = now()`;
+          updated_at = now()`
+
+      console.log('✅ Bulk insert completed, result:', insertResult)
     });
 
     console.log('✅ Bulk insert completed');

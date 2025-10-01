@@ -9,17 +9,6 @@ export default function Home() {
       <div className="container mx-auto py-16 px-4">
         {/* Header */}
         <div className="text-center mb-12">
-          <div className="inline-flex items-center gap-2 mb-4">
-            <Badge variant="secondary" className="px-3 py-1">
-              <Cloud className="h-3 w-3 mr-1" />
-              Vercel Blob Storage
-            </Badge>
-            <Badge variant="outline" className="px-3 py-1">
-              <Zap className="h-3 w-3 mr-1" />
-              Chunked Upload
-            </Badge>
-          </div>
-          
           <h1 className="text-4xl font-bold tracking-tight mb-4 bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
             CSV File Upload
           </h1>

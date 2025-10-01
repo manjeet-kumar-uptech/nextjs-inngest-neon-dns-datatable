@@ -250,8 +250,7 @@ export const parseCsvFn = inngest.createFunction(
           has_mx = EXCLUDED.has_mx,
           mx = EXCLUDED.mx,
           spf = EXCLUDED.spf,
-          dmarc = EXCLUDED.dmarc,
-          updated_at = now()`
+          dmarc = EXCLUDED.dmarc`
 
       console.log('✅ Bulk insert completed, result:', insertResult)
     });

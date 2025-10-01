@@ -43,12 +43,41 @@ export async function runMigrations() {
 
     const schema = fs.readFileSync(schemaPath, 'utf8')
     console.log('📄 Schema file length:', schema.length)
-    console.log('📄 Schema preview:', schema.substring(0, 200) + '...')
+    console.log('📄 Schema preview:', schema.substring(0, 150) + '...')
 
-    // Execute the schema
+    // Execute the schema with detailed error handling
     console.log('⚡ Executing schema...')
-    await sql.unsafe(schema)
-    console.log('✅ Schema execution completed')
+    try {
+      await sql.unsafe(schema)
+      console.log('✅ Schema execution completed')
+    } catch (schemaError) {
+      console.error('❌ Schema execution failed:', schemaError)
+      console.error('❌ Schema error details:', {
+        message: schemaError instanceof Error ? schemaError.message : String(schemaError),
+        code: schemaError instanceof Error && 'code' in schemaError ? String((schemaError as { code: unknown }).code) : 'unknown'
+      })
+
+      // Try to create table manually if schema execution fails
+      console.log('🔄 Attempting manual table creation...')
+      try {
+        await sql`
+          CREATE TABLE IF NOT EXISTS domains (
+            id BIGSERIAL PRIMARY KEY,
+            raw TEXT NOT NULL,
+            domain TEXT NOT NULL,
+            has_mx BOOLEAN NOT NULL DEFAULT FALSE,
+            mx JSONB NOT NULL DEFAULT '[]'::jsonb,
+            spf TEXT,
+            dmarc TEXT,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+          )
+        `
+        console.log('✅ Manual table creation successful')
+      } catch (manualError) {
+        console.error('❌ Manual table creation also failed:', manualError)
+        throw schemaError // Throw original error
+      }
+    }
 
     // Verify the table was created
     const tablesAfter = await sql`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'`

@@ -244,13 +244,7 @@ export const parseCsvFn = inngest.createFunction(
           ${mxArr}::jsonb[],
           ${spfArr}::text[],
           ${dmarcArr}::text[]
-        )
-        ON CONFLICT (domain) DO UPDATE SET
-          raw = EXCLUDED.raw,
-          has_mx = EXCLUDED.has_mx,
-          mx = EXCLUDED.mx,
-          spf = EXCLUDED.spf,
-          dmarc = EXCLUDED.dmarc`
+        )`
 
       console.log('✅ Bulk insert completed, result:', insertResult)
     });

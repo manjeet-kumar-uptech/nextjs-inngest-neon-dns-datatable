@@ -48,18 +48,45 @@ export async function runMigrations() {
     // Execute the schema with detailed error handling
     console.log('⚡ Executing schema...')
     try {
-      await sql.unsafe(schema)
+      console.log('🔍 Executing SQL:', schema)
+
+      // Try individual statements first to isolate issues
+      const statements = schema.split(';').filter(stmt => stmt.trim().length > 0)
+      console.log('📋 Found', statements.length, 'SQL statements')
+
+      for (let i = 0; i < statements.length; i++) {
+        const stmt = statements[i].trim()
+        if (stmt) {
+          console.log(`🔄 Executing statement ${i + 1}:`, stmt.substring(0, 100) + '...')
+          try {
+            await sql.unsafe(stmt + ';')
+            console.log(`✅ Statement ${i + 1} executed successfully`)
+          } catch (stmtError) {
+            console.error(`❌ Statement ${i + 1} failed:`, stmtError)
+            console.error(`❌ Statement ${i + 1} error details:`, {
+              message: stmtError instanceof Error ? stmtError.message : String(stmtError),
+              code: stmtError instanceof Error && 'code' in stmtError ? String((stmtError as { code: unknown }).code) : 'unknown'
+            })
+            throw stmtError
+          }
+        }
+      }
+
       console.log('✅ Schema execution completed')
     } catch (schemaError) {
       console.error('❌ Schema execution failed:', schemaError)
       console.error('❌ Schema error details:', {
         message: schemaError instanceof Error ? schemaError.message : String(schemaError),
-        code: schemaError instanceof Error && 'code' in schemaError ? String((schemaError as { code: unknown }).code) : 'unknown'
+        code: schemaError instanceof Error && 'code' in schemaError ? String((schemaError as { code: unknown }).code) : 'unknown',
+        severity: schemaError instanceof Error && 'severity' in schemaError ? String((schemaError as { severity: unknown }).severity) : 'unknown',
+        detail: schemaError instanceof Error && 'detail' in schemaError ? String((schemaError as { detail: unknown }).detail) : 'unknown',
+        hint: schemaError instanceof Error && 'hint' in schemaError ? String((schemaError as { hint: unknown }).hint) : 'unknown'
       })
 
       // Try to create table manually if schema execution fails
       console.log('🔄 Attempting manual table creation...')
       try {
+        console.log('🔄 Creating domains table manually...')
         await sql`
           CREATE TABLE IF NOT EXISTS domains (
             id BIGSERIAL PRIMARY KEY,
@@ -73,8 +100,16 @@ export async function runMigrations() {
           )
         `
         console.log('✅ Manual table creation successful')
+
+        // Create index manually too
+        await sql`CREATE INDEX IF NOT EXISTS idx_domains_domain ON domains (domain)`
+        console.log('✅ Manual index creation successful')
       } catch (manualError) {
         console.error('❌ Manual table creation also failed:', manualError)
+        console.error('❌ Manual creation error details:', {
+          message: manualError instanceof Error ? manualError.message : String(manualError),
+          code: manualError instanceof Error && 'code' in manualError ? String((manualError as { code: unknown }).code) : 'unknown'
+        })
         throw schemaError // Throw original error
       }
     }
@@ -87,6 +122,8 @@ export async function runMigrations() {
     console.log('📋 Domains table exists after migration:', domainsExistsAfter)
 
     if (!domainsExistsAfter) {
+      console.error('❌ CRITICAL: Domains table still does not exist after all attempts!')
+      console.error('❌ This indicates a serious database permission or configuration issue')
       throw new Error('Domains table was not created successfully')
     }
 

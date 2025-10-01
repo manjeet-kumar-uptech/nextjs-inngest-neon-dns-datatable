@@ -48,7 +48,8 @@ export async function POST(request: NextRequest) {
 
     // Send event to Inngest for CSV processing
     try {
-      await inngest.send({
+      console.log('🔄 Sending event to Inngest...')
+      console.log('Event data:', {
         name: 'csv.uploaded',
         data: {
           url: blob.url,
@@ -56,9 +57,19 @@ export async function POST(request: NextRequest) {
           uploadedAt: new Date().toISOString(),
         },
       })
-      console.log('CSV processing event sent to Inngest')
+
+      const result = await inngest.send({
+        name: 'csv.uploaded',
+        data: {
+          url: blob.url,
+          fileName: uniqueFileName,
+          uploadedAt: new Date().toISOString(),
+        },
+      })
+
+      console.log('✅ Event sent successfully to Inngest:', result)
     } catch (error) {
-      console.error('Error sending Inngest event:', error)
+      console.error('❌ Error sending Inngest event:', error)
       // Don't fail the upload if Inngest event fails
     }
     

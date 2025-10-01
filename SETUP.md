@@ -36,6 +36,7 @@ DATABASE_URL=your_database_url_here
 # Inngest Configuration (for background CSV processing)
 INNGEST_EVENT_KEY=your_inngest_event_key_here
 INNGEST_SIGNING_KEY=your_inngest_signing_key_here
+INNGEST_BASE_URL=https://api.inngest.com
 ```
 
 ### 5. Pull Environment Variables
@@ -47,11 +48,32 @@ npm i -g vercel
 vercel env pull .env.local
 ```
 
-### 6. Test the Upload
+### 6. Start Inngest Dev Server
 
-1. Start your development server: `npm run dev`
-2. Go to `http://localhost:3000`
-3. Upload a CSV file to test the functionality
+For local development with Inngest, you need to run the Inngest dev server:
+
+```bash
+# Install Inngest CLI (if not already installed)
+npm install -g inngest-cli
+
+# Start the Inngest dev server
+npx inngest-cli dev --port 8288
+```
+
+Keep this running in a separate terminal.
+
+### 7. Test the Upload
+
+1. Start your Next.js development server: `npm run dev`
+2. Make sure Inngest dev server is running on port 8288
+3. Go to `http://localhost:3000`
+4. Upload a CSV file to test the functionality
+
+**Test Inngest Integration:**
+- Run the test script: `npm run test-inngest`
+- Use the `/api/inngest` endpoint with a PUT request containing test data
+- Check your console/terminal logs for function execution
+- Verify that functions are being called and executed
 
 ## Current Implementation
 

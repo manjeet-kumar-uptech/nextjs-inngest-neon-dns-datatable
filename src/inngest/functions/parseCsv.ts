@@ -17,13 +17,16 @@ export const parseCsv = inngest.createFunction(
   { id: 'parse-csv' },
   { event: 'csv.uploaded' },
   async ({ event, step }) => {
-
-    console.log("HERE WE GO")
+    console.log("🚀 parseCsv function STARTED!")
+    console.log("Event received:", JSON.stringify(event, null, 2))
+    console.log("Environment:", process.env.NODE_ENV)
+    console.log("Inngest client configured:", !!inngest)
 
     const { url, fileName, uploadedAt } = event.data as CsvUploadedEvent['data']
 
     console.log(`Processing CSV file: ${fileName}`)
     console.log(`File URL: ${url}`)
+    console.log(`Upload timestamp: ${uploadedAt}`)
 
     // Step 1: Download and validate the CSV file
     const csvContent = await step.run('download-csv', async () => {

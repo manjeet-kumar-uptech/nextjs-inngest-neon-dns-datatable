@@ -7,7 +7,8 @@
     "build": "next build --turbopack",
     "start": "next start",
     "lint": "eslint",
-    "setup": "node scripts/setup-env.js"
+    "setup": "node scripts/setup-env.js",
+    "test-inngest": "node test-inngest.js"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.2",

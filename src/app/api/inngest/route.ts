@@ -1,51 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { serve } from 'inngest/next'
 import { inngest } from '@/inngest/client'
-import { parseCsv } from '@/inngest/functions/parseCsv'
+import { parseCsv } from '@/inngest/functions'
+
+// Test function to verify Inngest is working
+const testFunction = inngest.createFunction(
+  { id: 'test-function' },
+  { event: 'test.event' },
+  async ({ event, step }) => {
+    console.log('🧪 Test function called!')
+    console.log('Test event received:', JSON.stringify(event.data, null, 2))
+
+    await step.run('test-step', async () => {
+      console.log('✅ Test step executed successfully')
+      return { success: true, message: 'Test completed' }
+    })
+
+    return { success: true, message: 'Test function completed' }
+  }
+)
 
 // Create an Inngest API handler that serves all functions
-export const { GET, POST } = serve({
+// This handles webhook calls from Inngest
+export const { GET, POST, PUT } = serve({
   client: inngest,
-  functions: [parseCsv],
+  functions: [parseCsv, testFunction],
   streaming: false,
 })
-
-// Optional: Add a separate endpoint for triggering CSV processing
-export async function PUT(request: NextRequest) {
-  try {
-    const { url, fileName } = await request.json()
-
-    if (!url || !fileName) {
-      return NextResponse.json(
-        { error: 'Missing required fields: url and fileName' },
-        { status: 400 }
-      )
-    }
-
-    // Send event to Inngest for CSV processing
-    await inngest.send({
-      name: 'csv.uploaded',
-      data: {
-        url,
-        fileName,
-        uploadedAt: new Date().toISOString(),
-      },
-    })
-
-    return NextResponse.json({
-      success: true,
-      message: 'CSV processing event sent successfully',
-      event: {
-        name: 'csv.uploaded',
-        data: { url, fileName }
-      }
-    })
-
-  } catch (error) {
-    console.error('Error sending Inngest event:', error)
-    return NextResponse.json(
-      { error: 'Failed to send CSV processing event' },
-      { status: 500 }
-    )
-  }
-}
